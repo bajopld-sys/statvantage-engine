@@ -1,0 +1,26 @@
+# secrets and local configuration
+.env
+
+# generated / local data
+data/
+output/
+publish/
+vault/
+*.db
+*.sqlite
+*.log
+*.pkl
+cl_ids_tmp.json
+_*.txt
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

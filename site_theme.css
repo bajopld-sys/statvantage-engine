@@ -1,0 +1,131 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   StatsVantage — нов вид (2026-10-26/27, по решение на потребителя след демото).
+   Подава се в края на <style> в make_team_report.py и презаписва старите правила
+   (по-късните печелят), затова старият CSS остава непипнат. Промяна само по вида =
+   редактиране на този файл + `python make_team_report.py --cached` (≈1 сек.).
+   Тъмен „терминал за данни": един ярък цвят (зелено-циан), кехлибар за предупреждения.
+   Шрифтове (линк в <head>): Bricolage Grotesque, IBM Plex Sans, IBM Plex Mono.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --page:#0B0D10; --page-2:#10141A; --surface:#12161C; --surface-2:#1A2029;
+  --ink:#E8ECF1; --ink-2:#B4BDC9; --ink-muted:#8A94A3;
+  --grid-line:#252C37; --border:rgba(255,255,255,0.08);
+  --good:#34D399; --critical:#F87171; --cat-blue:#60A5FA; --cat-blue-2:#2DD4A7; --cat-orange:#F5B544;
+  --primary:#2DD4A7; --primary-ink:#04261D; --amber:#F5B544; --bar:#2A3340; --glow:rgba(45,212,167,.38);
+  --rank-1:rgba(45,212,167,0.20); --rank-2:rgba(45,212,167,0.12); --rank-3:rgba(45,212,167,0.06);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+::selection { background: rgba(45,212,167,0.35); color:#fff; }
+body {
+  font-family:var(--body); background:var(--page); background-attachment:scroll;
+  padding-top:0; font-size:14.5px;
+}
+.mono, .num { font-family:var(--mono); }
+
+/* ── горна лента ── */
+.masthead {
+  position:sticky; top:0; z-index:8; display:flex; align-items:center; justify-content:space-between; gap:14px;
+  margin:0 calc(-1 * clamp(16px, 4vw, 40px)) 0; padding:0 clamp(16px, 4vw, 40px); height:58px;
+  background:color-mix(in srgb, var(--page) 86%, transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--grid-line);
+}
+.logo { display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:700; font-size:18px; color:var(--ink); text-decoration:none; white-space:nowrap; }
+.logo svg { width:26px; height:26px; flex:none; }
+.masthead .note { margin:0; font-size:12px; text-align:right; }
+.masthead .note b { font-family:var(--mono); font-weight:500; color:var(--ink-2); }
+
+/* ── hero ── */
+.hero { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:36px; align-items:center; padding:52px 0 34px; }
+.eyebrow { font:500 12px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--primary); margin-bottom:16px; display:inline-flex; gap:8px; align-items:center; }
+.eyebrow i { width:7px; height:7px; border-radius:50%; background:var(--primary); box-shadow:0 0 12px var(--glow); }
+.hero h1 { font-family:var(--display); font-size:clamp(34px,5vw,56px); line-height:1.03; font-weight:700; letter-spacing:-.015em;
+           background:none; -webkit-background-clip:border-box; background-clip:border-box; color:var(--ink); text-wrap:balance; }
+.hero h1 em { font-style:normal; color:var(--primary); }
+.hero .lead { color:var(--ink-muted); font-size:17px; max-width:46ch; margin:18px 0 22px; }
+.facts { display:flex; flex-wrap:wrap; gap:8px 22px; font-size:13px; color:var(--ink-muted); }
+.facts b { color:var(--ink); font-family:var(--mono); font-weight:600; margin-right:5px; }
+.heroBtns { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+.btn { background:var(--primary); color:var(--primary-ink); border:0; padding:11px 18px; border-radius:10px; font:600 14px var(--body); text-decoration:none; cursor:pointer; }
+.btn.ghost { background:transparent; color:var(--ink); border:1px solid var(--grid-line); }
+.btn:hover { filter:brightness(1.08); }
+.chartcard { margin-bottom:0; }
+.chartcard h3 { text-transform:none; letter-spacing:0; font-size:15px; font-weight:600; color:var(--ink); }
+.chartcard .sub { color:var(--ink-muted); font-size:12.5px; margin:4px 0 0; }
+.chartcard svg { width:100%; height:auto; display:block; margin-top:10px; overflow:visible; }
+.chartcard .ax { fill:var(--ink-muted); font:11px var(--mono); }
+.chartcard .gl { stroke:var(--grid-line); stroke-width:1; }
+.chartcard .ptl { fill:var(--ink); font:600 13px var(--mono); }
+@media (max-width: 900px) { .hero { grid-template-columns:1fr; padding-top:30px; } }
+
+/* ── общи компоненти ── */
+.card { background:var(--surface); border:1px solid var(--grid-line); border-radius:16px; }
+.card:hover { border-color:rgba(255,255,255,0.14); }
+h2 { font-family:var(--display); font-size:19px; font-weight:700; letter-spacing:-.005em; border-bottom:1px solid var(--grid-line); }
+h2 .num { background:var(--primary); color:var(--primary-ink); box-shadow:0 0 12px -2px var(--glow); font-family:var(--mono); }
+h3 { font-family:var(--body); }
+th { background:var(--surface-2); font-family:var(--mono); font-weight:500; letter-spacing:.06em; }
+td { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+td.tname, td.detail, td.mLabel, td.form { font-family:var(--body); }
+td.tname { font-weight:500; }
+td.form { font-family:var(--mono); }
+tbody tr:nth-child(even) { background:rgba(255,255,255,0.018); }
+tr:hover { background:rgba(45,212,167,0.07) !important; }
+.predSection { border:1px solid rgba(45,212,167,0.40); box-shadow:var(--shadow), 0 0 0 1px rgba(45,212,167,0.06) inset; }
+.predCard { background:var(--surface-2); border-radius:12px; }
+.predCard:hover { background:#1E2631; }
+.picker select:focus, .league-picker select:focus, input:focus-visible { outline:2px solid var(--primary); }
+
+/* ── лента за навигация и избор на първенство ── */
+.quickNav { background:var(--surface); border:1px solid var(--grid-line); border-radius:12px; box-shadow:var(--shadow); top:58px; }
+.quickNav button { background:var(--surface-2); color:var(--ink-2); border:1px solid var(--grid-line); font-family:var(--body); font-weight:500; }
+.quickNav button:hover { background:var(--primary); color:var(--primary-ink); border-color:var(--primary); box-shadow:0 3px 12px -3px var(--glow); }
+.league-picker { background:var(--surface); border:1px solid var(--grid-line); }
+.league-picker select { background:var(--surface-2); border:1px solid var(--grid-line); }
+
+/* ── топ прогнози ── */
+.topPicks { border-color:var(--grid-line); box-shadow:var(--shadow); }
+.topPicks h2 { border-bottom-color:var(--grid-line); }
+.topPicks .tpGrid { grid-template-columns:repeat(3, minmax(0,1fr)); }
+@media (max-width: 900px) { .topPicks .tpGrid { grid-template-columns:1fr; } .masthead .note { display:none; } }
+.topPicks h3 { text-transform:none; letter-spacing:0; font-size:15px; font-weight:600; color:var(--ink); margin:0; }
+.topPicks .tpList { margin-top:12px; }
+.topPicks .tpList li { grid-template-columns:20px minmax(0,1fr) auto; background:var(--surface-2); position:relative; overflow:hidden; border-color:transparent; }
+.topPicks .tpList li::after { content:""; position:absolute; left:0; bottom:0; height:2px; width:var(--w,0%); background:var(--primary); opacity:.85; }
+.topPicks .tpMatch b { font-weight:500; font-size:13.5px; overflow-wrap:anywhere; }
+.topPicks .tpVal { text-align:right; }
+.topPicks .tpVal strong { font:600 15px var(--mono); display:block; }
+.topPicks .tpVal small { color:var(--ink-muted); font:11px var(--mono); }
+.topPicks .sign { display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 5px; border-radius:6px; background:var(--primary); color:var(--primary-ink); font:600 11.5px var(--mono); margin-right:6px; vertical-align:1px; }
+.topPicks .src { font:500 10px var(--mono); border:1px solid var(--grid-line); border-radius:5px; padding:1px 5px; margin-left:5px; color:var(--ink-muted); font-style:normal; }
+
+/* ── точност на моделите ── */
+.trackSection .acc { display:flex; flex-direction:column; }
+.trackSection .arow { display:grid; grid-template-columns:150px repeat(3,minmax(0,1fr)); gap:18px; align-items:center; padding:13px 0; border-bottom:1px solid var(--grid-line); }
+.trackSection .arow:last-child { border-bottom:0; }
+.trackSection .arow.h { padding-top:0; font:500 11.5px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); }
+.trackSection .mn { font-weight:500; }
+.trackSection .meter { display:flex; align-items:center; gap:10px; min-width:0; }
+.trackSection .meter .tr { flex:1; height:8px; background:var(--bar); border-radius:99px; overflow:hidden; }
+.trackSection .meter .fl { height:100%; background:var(--cat-blue); border-radius:99px; }
+.trackSection .meter .fl.best { background:var(--primary); box-shadow:0 0 10px var(--glow); }
+.trackSection .meter .tx { font:600 13px var(--mono); min-width:44px; text-align:right; }
+.trackSection .meter small { color:var(--ink-muted); font:400 11px var(--mono); }
+@media (max-width: 900px) {
+  .trackSection .arow { grid-template-columns:1fr; gap:8px; } .trackSection .arow.h { display:none; }
+  .trackSection .meter::before { content:attr(data-l); font:500 11px var(--mono); color:var(--ink-muted); width:52px; flex:none; }
+}
+
+/* ── телефон: таблиците се превъртат вътре в своя блок, страницата не става по-широка ── */
+.card, .grid > div, .venue-grid > div { min-width:0; }
+.grid > div, .venue-grid > div { overflow-x:auto; }
+.card > table, .card > .tableScroll { max-width:100%; }
+@media (max-width: 700px) { .card { padding:16px 14px 18px; } .card > table { display:block; overflow-x:auto; } }
+
+/* ── „Мачове в първенството“: точки най-вдясно, избраните отбори са маркирани ── */
+.standGridTable .standGridPts { text-align:right; font:600 14px var(--mono); padding-right:16px; color:var(--ink); }
+.standGridTable .standGridPtsH { text-align:right; padding-right:16px; vertical-align:bottom; }
+.standGridTable tr.pick1 td.tname, .standGridTable tr.pick2 td.tname { font-weight:600; }
+.standGridTable tr.pick1 td.standGridPts { color:var(--cat-blue); }
+.standGridTable tr.pick2 td.standGridPts { color:var(--cat-orange); }

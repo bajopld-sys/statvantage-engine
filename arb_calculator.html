@@ -1,0 +1,210 @@
+<!-- Арбитражен калкулатор (Surebet), вграден в отчета на 2026-10-17 по искане на потребителя.
+     Логиката и изпращането към Google Sheets са 1:1 с Desktop\Бета.html; единствено ids са с
+     префикс arb_, за да не се засичат с останалата страница. Вмъква се от make_team_report.py
+     като суров текст (не през f-string), затова скобите тук са нормални. -->
+<style>
+  #arbSection .arb-top { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr 1.2fr; gap: 14px; margin-bottom: 18px; align-items: end; }
+  #arbSection .arb-grid { display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 1.2fr; gap: 10px; margin-bottom: 14px; align-items: end; }
+  #arbSection .arb-field { display: flex; flex-direction: column; min-width: 0; }
+  #arbSection label { font-weight: 600; margin-bottom: 5px; color: var(--ink-muted); font-size: 10px;
+                      text-transform: uppercase; letter-spacing: .5px; }
+  #arbSection input, #arbSection select {
+    height: 44px; width: 100%; padding: 8px 10px; font-size: 14px; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    color-scheme: dark; font-variant-numeric: tabular-nums; }
+  #arbSection input:focus, #arbSection select:focus { outline: 2px solid var(--cat-blue); outline-offset: 1px; }
+  #arbSection .arb-bet { font-weight: 700; border-color: rgba(255,200,60,.45); }
+  #arbSection .arb-res { text-align: center; font-weight: 700; border: none; color: #fff; }
+  #arbSection .arb-res.pos { background: #1f8f4d; }
+  #arbSection .arb-res.neg { background: #c0392b; }
+  #arbSection .arb-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  #arbSection .arb-btn { height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--border);
+                         background: transparent; color: var(--ink-2); font-weight: 600; cursor: pointer; }
+  #arbSection .arb-btn:hover { color: var(--ink); border-color: var(--ink-2); }
+  #arbSection .arb-btn.save { flex: 1; background: #1f8f4d; border-color: #1f8f4d; color: #fff; }
+  #arbSection .arb-btn.save:hover { background: #26a35a; }
+  #arbSection .arb-btn:disabled { opacity: .6; cursor: default; }
+  #arbSummary { margin-top: 18px; padding: 14px; border-radius: 10px; text-align: center; font-size: 18px;
+                background: var(--surface-2); border: 1px solid var(--border); min-height: 24px; font-variant-numeric: tabular-nums; }
+  #arbMargin { text-align: center; margin-top: 10px; font-weight: 700; font-size: 14px; color: var(--ink-muted); }
+  @media (max-width: 720px) {
+    #arbSection .arb-top { grid-template-columns: 1fr 1fr; }
+    #arbSection .arb-grid { grid-template-columns: 1fr 1fr; }
+    #arbSection .arb-grid .arb-hdr { display: none; }
+  }
+</style>
+
+<section class="card" id="arbSection">
+  <h2>🧮 Арбитраж — калкулатор (Surebet, €)</h2>
+  <div class="arb-top">
+    <div class="arb-field"><label for="arb_dt">Дата и час на мача</label><input type="datetime-local" id="arb_dt"></div>
+    <div class="arb-field"><label for="arb_total">Обща сума (€)</label><input type="number" id="arb_total" value="200"></div>
+    <div class="arb-field"><label for="arb_home">Домакин</label><input type="text" id="arb_home" placeholder="Отбор 1"></div>
+    <div class="arb-field"><label for="arb_away">Гост</label><input type="text" id="arb_away" placeholder="Отбор 2"></div>
+  </div>
+
+  <div class="arb-grid">
+    <label class="arb-hdr">Букмейкър</label><label class="arb-hdr">Коефициент</label><label class="arb-hdr">Залог</label><label class="arb-hdr">Чист резултат (€)</label>
+
+    <select id="arb_s1"><option>Bet365</option><option>BetHub</option><option>Winbet</option><option>Sesame</option><option>8888</option><option>Betano</option><option>Inbet</option></select>
+    <input type="number" id="arb_k1" step="0.01" placeholder="К1">
+    <input type="number" id="arb_b1" class="arb-bet">
+    <input type="text" id="arb_r1" class="arb-res" readonly>
+
+    <select id="arb_s2"><option>Bet365</option><option>BetHub</option><option>Winbet</option><option>Sesame</option><option>8888</option><option>Betano</option><option>Inbet</option></select>
+    <input type="number" id="arb_k2" step="0.01" placeholder="К2">
+    <input type="number" id="arb_b2" class="arb-bet">
+    <input type="text" id="arb_r2" class="arb-res" readonly>
+
+    <select id="arb_s3"><option>Bet365</option><option>BetHub</option><option>Winbet</option><option>Sesame</option><option>8888</option><option>Betano</option><option>Inbet</option></select>
+    <input type="number" id="arb_k3" step="0.01" placeholder="К3">
+    <input type="number" id="arb_b3" class="arb-bet">
+    <input type="text" id="arb_r3" class="arb-res" readonly>
+  </div>
+
+  <div class="arb-actions">
+    <button type="button" class="arb-btn" id="arb_clear">Изчисти всичко</button>
+    <button type="button" class="arb-btn save" id="arb_save">ВЪВЕДИ В GOOGLE SHEETS</button>
+  </div>
+  <div id="arbSummary"></div>
+  <div id="arbMargin"></div>
+</section>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+
+  function calculate(autoDistribute) {
+    const totalSum = parseFloat($('arb_total').value) || 0;
+    const ks = [1, 2, 3].map(i => parseFloat($('arb_k' + i).value) || 0);
+    let bets = [1, 2, 3].map(i => parseFloat($('arb_b' + i).value) || 0);
+
+    if (ks[0] > 0 && ks[1] > 0 && ks[2] > 0) {
+      // Арбитражен марж: под 100% е Surebet
+      const arbL = (1 / ks[0] + 1 / ks[1] + 1 / ks[2]);
+      const marginEl = $('arbMargin');
+      marginEl.innerHTML = 'Арбитражен марж: ' + (arbL * 100).toFixed(2) + '%';
+      marginEl.style.color = arbL < 1 ? '#27ae60' : '#e74c3c';
+
+      if (autoDistribute && totalSum > 0) {
+        bets = ks.map(k => ((1 / k) / arbL) * totalSum);
+        bets.forEach((b, i) => { $('arb_b' + (i + 1)).value = b.toFixed(2); });
+      }
+
+      const totalInvested = bets.reduce((a, b) => a + b, 0);
+      bets.forEach((bet, i) => {
+        const net = (bet * ks[i]) - totalInvested;
+        const el = $('arb_r' + (i + 1));
+        el.value = (net > 0 ? '+' : '') + net.toFixed(2) + ' €';
+        el.className = 'arb-res ' + (net >= 0 ? 'pos' : 'neg');
+      });
+
+      const minProfit = Math.min(...bets.map((b, i) => (b * ks[i]) - totalInvested));
+      $('arbSummary').innerHTML = (minProfit >= 0 ? '✅ Печалба: ' : '⚠️ Загуба: ') + minProfit.toFixed(2) + ' €';
+      if (!autoDistribute) $('arb_total').value = totalInvested.toFixed(2);
+    } else {
+      $('arbMargin').innerHTML = '';
+    }
+  }
+
+  function clearFields() {
+    ['arb_home', 'arb_away', 'arb_k1', 'arb_k2', 'arb_k3', 'arb_b1', 'arb_b2', 'arb_b3',
+     'arb_r1', 'arb_r2', 'arb_r3', 'arb_dt'].forEach(id => {
+      const el = $(id);
+      if (el) el.value = '';
+      if (id.startsWith('arb_r')) el.className = 'arb-res';
+    });
+    $('arbSummary').innerHTML = '';
+    $('arbMargin').innerHTML = '';
+  }
+
+  const BG_DAYS = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
+
+  // Адресът на Apps Script и тайният ключ НЕ са в кода (страницата е публична):
+  // питат се веднъж и остават само в браузъра на потребителя (localStorage).
+  function getConnection() {
+    let url = '', key = '';
+    try {
+      url = localStorage.getItem('arb_sheet_url') || '';
+      key = localStorage.getItem('arb_sheet_key') || '';
+    } catch (e) { /* localStorage недостъпен */ }
+    if (!url || !key) {
+      url = (prompt('Адрес на Google Apps Script (завършва на /exec):') || '').trim();
+      key = (prompt('Таен ключ (ARB_SECRET от Script Properties):') || '').trim();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url) || !key) return null;
+      try {
+        localStorage.setItem('arb_sheet_url', url);
+        localStorage.setItem('arb_sheet_key', key);
+      } catch (e) { /* ще се пита отново следващия път */ }
+    }
+    return { url, key };
+  }
+
+  async function saveToSheet() {
+    const conn = getConnection();
+    if (!conn) { alert('Записът в Google Sheets не е настроен.'); return; }
+    const getS = id => $(id).options[$(id).selectedIndex].text;
+
+    // Ден (колона A) + Час (колона B) от полето "Дата и час на мача", като два отделни низа
+    const dtVal = $('arb_dt').value; // "YYYY-MM-DDTHH:MM"
+    let dayName = '', timeStr = '';
+    if (dtVal) {
+      const [datePart, tPart] = dtVal.split('T');
+      const [yyyy, mm, dd] = datePart.split('-');
+      const dt = new Date(dtVal);
+      dayName = `${BG_DAYS[dt.getDay()]}(${dd},${mm},${yyyy.slice(2)})`;
+      timeStr = tPart || '';
+    }
+
+    // Чист резултат (колона P) — гарантираната печалба, като чисто число
+    const ks = [1, 2, 3].map(i => parseFloat($('arb_k' + i).value) || 0);
+    const bets = [1, 2, 3].map(i => parseFloat($('arb_b' + i).value) || 0);
+    const totalInvested = bets.reduce((a, b) => a + b, 0);
+    const netProfit = Math.min(...bets.map((b, i) => (b * ks[i]) - totalInvested));
+
+    const data = {
+      key: conn.key,
+      day: dayName,
+      time: timeStr,
+      homeTeam: $('arb_home').value,
+      awayTeam: $('arb_away').value,
+      totalSum: $('arb_total').value,
+      s1: getS('arb_s1'), k1: $('arb_k1').value, b1: $('arb_b1').value,
+      s2: getS('arb_s2'), k2: $('arb_k2').value, b2: $('arb_b2').value,
+      s3: getS('arb_s3'), k3: $('arb_k3').value, b3: $('arb_b3').value,
+      score: '',  // колона O — резултатът се вписва ръчно след мача
+      profit: netProfit.toFixed(2)
+    };
+
+    const btn = $('arb_save');
+    btn.innerText = 'ИЗПРАЩАНЕ...';
+    btn.disabled = true;
+    try {
+      await fetch(conn.url, {
+        method: 'POST', mode: 'no-cors', cache: 'no-cache',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      alert('Данните са изпратени успешно към колони A-P!');
+      clearFields();
+    } catch (error) {
+      alert('Възникна грешка при връзката.');
+    } finally {
+      btn.innerText = 'ВЪВЕДИ В GOOGLE SHEETS';
+      btn.disabled = false;
+    }
+  }
+
+  $('arb_total').addEventListener('input', () => calculate(true));
+  [1, 2, 3].forEach(i => {
+    $('arb_k' + i).addEventListener('input', () => calculate(true));
+    $('arb_b' + i).addEventListener('input', () => calculate(false));
+  });
+  $('arb_clear').addEventListener('click', clearFields);
+  $('arb_save').addEventListener('click', saveToSheet);
+
+  // бутон в бързата навигация
+  const nav = document.getElementById('arbNavBtn');
+  if (nav) nav.addEventListener('click', () => $('arbSection').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+})();
+</script>
