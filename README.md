@@ -58,7 +58,7 @@ parameter (rho = -0.12) was fitted by maximum likelihood (`calibrate_rho.py`).
 Requires Python 3.12+.
 
 ```bash
-git clone https://github.com/<your-user>/statvantage-engine.git
+git clone https://github.com/bajopld-sys/statvantage-engine.git
 cd statvantage-engine
 python -m venv .venv
 # Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
