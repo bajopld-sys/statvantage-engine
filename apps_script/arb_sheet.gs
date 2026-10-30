@@ -4,7 +4,9 @@
  *
  * Setup
  *   1. Bind the script to the spreadsheet (Extensions -> Apps Script).
- *   2. Project Settings -> Script properties -> add ARB_SECRET = <long random string>.
+ *   2. Project Settings -> Script properties -> add ARB_SECRET = <4-digit PIN>.
+ *      A short PIN is acceptable only because of the lockout below: after
+ *      MAX_FAILS wrong PINs, ALL writes are refused for LOCKOUT_SECONDS.
  *      The secret is NOT in this file; it lives only in the script's properties and,
  *      once, in the browser that uses the calculator (it is typed into a prompt).
  *   3. Deploy -> New deployment -> Web app -> Execute as: me, Who has access: anyone.
@@ -25,6 +27,14 @@ var COLUMN_ORDER = [
 ];
 var MAX_TEXT_LENGTH = 100;
 
+// Sheet (tab) the rows are appended to.
+var SHEET_NAME = 'Лист1';
+
+// Brute-force protection for the short PIN.
+var MAX_FAILS = 5;
+var LOCKOUT_SECONDS = 3600;
+var FAILS_KEY = 'arb_failed_attempts';
+
 function doPost(e) {
   var secret = PropertiesService.getScriptProperties().getProperty('ARB_SECRET');
   if (!secret) return reply_({ ok: false, error: 'not configured' });
@@ -36,8 +46,16 @@ function doPost(e) {
     return reply_({ ok: false, error: 'bad request' });
   }
 
+  // Locked out after too many wrong PINs: refuse everything, even a correct PIN.
+  var cache = CacheService.getScriptCache();
+  var fails = parseInt(cache.get(FAILS_KEY) || '0', 10);
+  if (fails >= MAX_FAILS) {
+    return reply_({ ok: false, error: 'locked' });
+  }
+
   // Reject anything that does not carry the shared secret.
   if (!safeEqual_(String(data.key || ''), secret)) {
+    cache.put(FAILS_KEY, String(fails + 1), LOCKOUT_SECONDS);
     return reply_({ ok: false, error: 'forbidden' });
   }
 
@@ -48,7 +66,7 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    SpreadsheetApp.getActiveSheet().appendRow(row);
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME).appendRow(row);
   } finally {
     lock.releaseLock();
   }
@@ -76,4 +94,15 @@ function cleanNumber_(value) {
 
 function reply_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Run from the editor (Run -> testDoPost) to check the setup: appends one test row. */
+function testDoPost() {
+  var secret = PropertiesService.getScriptProperties().getProperty('ARB_SECRET');
+  var fakeEvent = { postData: { contents: JSON.stringify({
+    key: secret, day: 'TestDay', time: '20:00', homeTeam: 'Test', awayTeam: 'Test2',
+    totalSum: '100', s1: 'Bet365', k1: '3', b1: '33', s2: 'Bet365', k2: '4', b2: '25',
+    s3: 'Bet365', k3: '5', b3: '20', score: '', profit: '1'
+  }) } };
+  Logger.log(doPost(fakeEvent).getContent());
 }

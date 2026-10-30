@@ -27,6 +27,21 @@
   #arbSummary { margin-top: 18px; padding: 14px; border-radius: 10px; text-align: center; font-size: 18px;
                 background: var(--surface-2); border: 1px solid var(--border); min-height: 24px; font-variant-numeric: tabular-nums; }
   #arbMargin { text-align: center; margin-top: 10px; font-weight: 700; font-size: 14px; color: var(--ink-muted); }
+  #arbPinOverlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+                   background: rgba(0,0,0,.55); padding: 16px; }
+  #arbPinOverlay[hidden] { display: none; }
+  #arbPinBox { width: 100%; max-width: 320px; padding: 20px; border-radius: 12px; background: var(--surface-2, #1b1f27);
+               border: 1px solid var(--border, #333); color: var(--ink, #eee); }
+  #arbPinBox p { margin: 0 0 12px; font-weight: 600; }
+  #arbPinBox input { height: 44px; width: 100%; padding: 8px 10px; font-size: 22px; letter-spacing: 8px; text-align: center;
+                     color: var(--ink, #eee); background: var(--surface, #14171d); border: 1px solid var(--border, #333);
+                     border-radius: 8px; color-scheme: dark; box-sizing: border-box; }
+  #arbPinBox input:focus { outline: 2px solid var(--cat-blue, #4c8dff); outline-offset: 1px; }
+  #arbPinErr { min-height: 18px; margin: 8px 0 0; font-size: 12px; color: #e0604f; }
+  #arbPinBox .arb-pin-actions { display: flex; gap: 10px; margin-top: 12px; }
+  #arbPinBox .arb-pin-actions button { flex: 1; height: 40px; border-radius: 8px; border: 1px solid var(--border, #333);
+                     background: transparent; color: var(--ink-2, #ccc); font-weight: 600; cursor: pointer; }
+  #arbPinBox .arb-pin-actions button.ok { background: #1f8f4d; border-color: #1f8f4d; color: #fff; }
   @media (max-width: 720px) {
     #arbSection .arb-top { grid-template-columns: 1fr 1fr; }
     #arbSection .arb-grid { grid-template-columns: 1fr 1fr; }
@@ -65,10 +80,23 @@
   <div class="arb-actions">
     <button type="button" class="arb-btn" id="arb_clear">Изчисти всичко</button>
     <button type="button" class="arb-btn save" id="arb_save">ВЪВЕДИ В GOOGLE SHEETS</button>
+    <button type="button" class="arb-btn" id="arb_reset_pin" style="font-size:12px;opacity:.7">Смени ПИН</button>
   </div>
   <div id="arbSummary"></div>
   <div id="arbMargin"></div>
 </section>
+
+<div id="arbPinOverlay" hidden>
+  <div id="arbPinBox" role="dialog" aria-modal="true" aria-labelledby="arbPinTitle">
+    <p id="arbPinTitle">ПИН за Google Sheets</p>
+    <input type="password" id="arb_pin" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="ПИН (4 цифри)">
+    <div id="arbPinErr" role="alert"></div>
+    <div class="arb-pin-actions">
+      <button type="button" id="arb_pin_cancel">Отказ</button>
+      <button type="button" id="arb_pin_ok" class="ok">OK</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -120,29 +148,65 @@
 
   const BG_DAYS = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
 
-  // Адресът на Apps Script и тайният ключ НЕ са в кода (страницата е публична):
-  // питат се веднъж и остават само в браузъра на потребителя (localStorage).
-  function getConnection() {
-    let url = '', key = '';
+  // Адресът на Apps Script не е тайна: без верния ПИН скриптът отказва запис,
+  // а след 5 грешни опита блокира всички записи за 1 час.
+  // Ако ARB_SHEET_URL е празен, адресът се пита веднъж и се пази в браузъра.
+  const ARB_SHEET_URL = 'https://script.google.com/macros/s/AKfycbykzA2MXRsqb3uwWIMoFf0-QTmZpb_yc31yax-VYfeBGVef1MDvpB3JWnRRlz7P-Kc4/exec';
+
+  // Поле за ПИН със скрити символи (prompt() не може да ги скрива). -> Promise<string|null>
+  function askPin() {
+    return new Promise(resolve => {
+      const overlay = $('arbPinOverlay'), input = $('arb_pin'), err = $('arbPinErr');
+      input.value = '';
+      err.textContent = '';
+      overlay.hidden = false;
+      input.focus();
+      const finish = value => {
+        overlay.hidden = true;
+        input.oninput = input.onkeydown = $('arb_pin_ok').onclick = $('arb_pin_cancel').onclick = null;
+        resolve(value);
+      };
+      const submit = () => {
+        const value = input.value.trim();
+        if (!/^\d{4}$/.test(value)) { err.textContent = 'ПИН-ът е 4 цифри.'; input.focus(); return; }
+        finish(value);
+      };
+      input.oninput = () => { input.value = input.value.replace(/\D/g, ''); err.textContent = ''; };
+      input.onkeydown = e => { if (e.key === 'Enter') submit(); else if (e.key === 'Escape') finish(null); };
+      $('arb_pin_ok').onclick = submit;
+      $('arb_pin_cancel').onclick = () => finish(null);
+    });
+  }
+
+  // ПИН-ът (ARB_SECRET в Script Properties) се пита веднъж и се пази в браузъра.
+  async function getConnection() {
+    let url = ARB_SHEET_URL, key = '';
     try {
-      url = localStorage.getItem('arb_sheet_url') || '';
+      if (!url) url = localStorage.getItem('arb_sheet_url') || '';
       key = localStorage.getItem('arb_sheet_key') || '';
     } catch (e) { /* localStorage недостъпен */ }
-    if (!url || !key) {
+    if (!url) {
       url = (prompt('Адрес на Google Apps Script (завършва на /exec):') || '').trim();
-      key = (prompt('Таен ключ (ARB_SECRET от Script Properties):') || '').trim();
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url) || !key) return null;
-      try {
-        localStorage.setItem('arb_sheet_url', url);
-        localStorage.setItem('arb_sheet_key', key);
-      } catch (e) { /* ще се пита отново следващия път */ }
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)) return null;
+      try { localStorage.setItem('arb_sheet_url', url); } catch (e) {}
+    }
+    if (!key) {
+      key = await askPin();
+      if (!key) return null;
+      try { localStorage.setItem('arb_sheet_key', key); } catch (e) {}
     }
     return { url, key };
   }
 
+  // Изтрива запомнения ПИН (напр. при грешно въведен), за да се пита отново.
+  function resetSheetPin() {
+    try { localStorage.removeItem('arb_sheet_key'); } catch (e) {}
+    alert('ПИН-ът е изтрит. Ще бъде поискан при следващия запис.');
+  }
+
   async function saveToSheet() {
-    const conn = getConnection();
-    if (!conn) { alert('Записът в Google Sheets не е настроен.'); return; }
+    const conn = await getConnection();
+    if (!conn) { alert('Невалиден адрес или ПИН (трябва да е 4 цифри).'); return; }
     const getS = id => $(id).options[$(id).selectedIndex].text;
 
     // Ден (колона A) + Час (колона B) от полето "Дата и час на мача", като два отделни низа
@@ -202,6 +266,7 @@
   });
   $('arb_clear').addEventListener('click', clearFields);
   $('arb_save').addEventListener('click', saveToSheet);
+  $('arb_reset_pin').addEventListener('click', resetSheetPin);
 
   // бутон в бързата навигация
   const nav = document.getElementById('arbNavBtn');
